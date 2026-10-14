@@ -14,8 +14,11 @@
 		// TEAM_DOMAIN may be the base Access URL or the full /cdn-cgi/access/certs URL.
 		// The worker now fails closed outside local development if Access is not configured.
 		"DOMAINS": "example.com",
-		"EMAIL_ADDRESSES": []
+		"EMAIL_ADDRESSES": [],
+		// cloudflare (default) or mailjet. See README for Mailjet secrets and binding setup.
+		"EMAIL_PROVIDER": "cloudflare"
 	},
+	// For Mailjet-only deployments, remove this binding (or set send_email to []).
 	"send_email": [
 		{
 			"name": "EMAIL",

@@ -3,12 +3,12 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 /**
- * Email sending via Cloudflare Email Service binding.
- *
- * Uses the `send_email` Worker binding (`env.EMAIL.send()`) to send emails.
- *
- * See: https://developers.cloudflare.com/email-service/api/send-emails/workers-api/
+ * Shared outbound email contract and provider selection.
+ * Cloudflare remains the default for existing deployments.
  */
+
+import { sendCloudflareEmail } from "./email-providers/cloudflare";
+import { sendMailjetEmail } from "./email-providers/mailjet";
 
 export interface SendEmailParams {
 	to: string | string[];
@@ -29,44 +29,37 @@ export interface SendEmailParams {
 	headers?: Record<string, string>;
 }
 
-/**
- * Send an email using the Cloudflare Email Service binding.
- *
- * @param binding  - The `EMAIL` SendEmail binding from env
- * @param params   - Email parameters (to, from, subject, body, etc.)
- * @returns The send result with messageId
- * @throws On validation or delivery errors (error has `.code` property)
- */
+export interface EmailSenderEnv {
+	EMAIL?: SendEmail;
+	EMAIL_PROVIDER?: string;
+	MAILJET_API_KEY?: string;
+	MAILJET_SECRET_KEY?: string;
+}
+
+export class EmailSendError extends Error {
+	readonly code: string;
+
+	constructor(message: string, code: string) {
+		super(message);
+		this.name = "EmailSendError";
+		this.code = code;
+	}
+}
+
+/** Send once through the configured provider; never retry or fall back automatically. */
 export async function sendEmail(
-	binding: SendEmail,
+	env: EmailSenderEnv,
 	params: SendEmailParams,
 ): Promise<{ messageId: string }> {
-	const message: Record<string, unknown> = {
-		to: params.to,
-		from: params.from,
-		subject: params.subject,
-	};
-
-	if (params.html) message.html = params.html;
-	if (params.text) message.text = params.text;
-	if (params.cc) message.cc = params.cc;
-	if (params.bcc) message.bcc = params.bcc;
-	if (params.replyTo) message.replyTo = params.replyTo;
-
-	if (params.headers && Object.keys(params.headers).length > 0) {
-		message.headers = params.headers;
+	switch (env.EMAIL_PROVIDER ?? "cloudflare") {
+		case "cloudflare":
+			if (!env.EMAIL) {
+				throw new EmailSendError("Cloudflare EMAIL binding is not configured", "EMAIL_CONFIG_ERROR");
+			}
+			return sendCloudflareEmail(env.EMAIL, params);
+		case "mailjet":
+			return sendMailjetEmail(env, params);
+		default:
+			throw new EmailSendError("EMAIL_PROVIDER must be cloudflare or mailjet", "EMAIL_CONFIG_ERROR");
 	}
-
-	if (params.attachments && params.attachments.length > 0) {
-		message.attachments = params.attachments.map((att) => ({
-			content: att.content,
-			filename: att.filename,
-			type: att.type,
-			disposition: att.disposition,
-			...(att.contentId ? { contentId: att.contentId } : {}),
-		}));
-	}
-
-	const result = await binding.send(message as any);
-	return { messageId: result.messageId };
 }

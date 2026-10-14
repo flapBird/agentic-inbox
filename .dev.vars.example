@@ -1,3 +1,9 @@
 # Cloudflare Access (required in production). TEAM_DOMAIN may be the base Access URL or the full /cdn-cgi/access/certs URL.
 POLICY_AUD=your-access-policy-audience-tag
 TEAM_DOMAIN=https://your-team.cloudflareaccess.com
+
+# Outbound provider: cloudflare (default) or mailjet.
+EMAIL_PROVIDER=cloudflare
+# Required only with EMAIL_PROVIDER=mailjet. Production: use wrangler secret put.
+# MAILJET_API_KEY=your-mailjet-api-key
+# MAILJET_SECRET_KEY=your-mailjet-secret-key

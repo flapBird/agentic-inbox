@@ -25,7 +25,7 @@ https://github.com/cloudflare/agentic-inbox/issues/4#issuecomment-4269118513
 
 2. **Configure Cloudflare Access** -- Enable [one-click Cloudflare Access](https://developers.cloudflare.com/changelog/post/2025-10-03-one-click-access-for-workers/) on your Worker under Settings > Domains & Routes. The modal will show your `POLICY_AUD` and `TEAM_DOMAIN` values. `TEAM_DOMAIN` can be either your Access team URL or the full `.../cdn-cgi/access/certs` URL. **You must set these as secrets for your Worker.**
 3. **Set up Email Routing** -- In the Cloudflare dashboard, go to your domain > Email Routing and create a catch-all rule that forwards to this Worker
-4. **Enable Email Service** -- The worker needs the `send_email` binding to send outbound emails. See [Email Service docs](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/)
+4. **Configure outbound email** -- Use Cloudflare Email Service (the default, with the `send_email` binding), or configure Mailjet using the [provider setup below](#outbound-email-provider). Incoming mail continues to use Cloudflare Email Routing in either case.
 5. **Create a mailbox** -- Visit your deployed app and create a mailbox for any address on your domain (e.g. `hello@example.com`)
 
 ### Troubleshooting Access
@@ -37,7 +37,7 @@ https://github.com/cloudflare/agentic-inbox/issues/4#issuecomment-4269118513
 
 ## Features
 
-- **Full email client** — Send and receive emails via Cloudflare Email Routing with a rich text composer, reply/forward threading, folder organization, search, and attachments
+- **Full email client** — Receive via Cloudflare Email Routing and send via Cloudflare Email Service or Mailjet, with a rich text composer, reply/forward threading, folder organization, search, and attachments
 - **Per-mailbox isolation** — Each mailbox runs in its own Durable Object with SQLite storage and R2 for attachments
 - **Built-in AI agent** — Side panel with 9 email tools for reading, searching, drafting, and sending
 - **Auto-draft on new email** — Agent automatically reads inbound emails and generates draft replies, always requiring explicit confirmation before sending
@@ -62,6 +62,52 @@ npm run dev
 1. Set your domain in `wrangler.jsonc`
 2. Create an R2 bucket named `agentic-inbox`: `wrangler r2 bucket create agentic-inbox`
 
+### Outbound email provider
+
+`EMAIL_PROVIDER` selects the sender for the web composer, replies, forwards, AI agent and MCP tools. It defaults to `cloudflare` when omitted. There is no automatic fallback or retry, to avoid sending a message twice after an ambiguous network failure.
+
+| Setting | Cloudflare | Mailjet |
+| --- | --- | --- |
+| `EMAIL_PROVIDER` | `cloudflare` (default) | `mailjet` |
+| Required binding | `EMAIL` (`send_email`) | None for sending |
+| Required secrets | None for sending | `MAILJET_API_KEY`, `MAILJET_SECRET_KEY` |
+
+#### Use Mailjet
+
+1. In Mailjet, verify each sender address or the entire domain used by your mailboxes, and configure the SPF/DKIM records Mailjet provides. Keep Cloudflare Email Routing's MX records for receiving. Merge SPF authorizations into the existing SPF record instead of adding a second SPF record. See [Mailjet sender/domain setup](https://dev.mailjet.com/docs/email-api/senders-domains/senders-domains-overview).
+2. In `wrangler.jsonc`, set `vars.EMAIL_PROVIDER` to `"mailjet"`. For a deployment without Cloudflare Email Service, replace the top-level `send_email` array with `[]` (or remove it). Selecting Mailjet at runtime alone does not remove a deployment binding requirement.
+3. Store both Mailjet keys as Worker secrets (never in source control or browser code):
+
+   ```bash
+   npx wrangler secret put MAILJET_API_KEY
+   npx wrangler secret put MAILJET_SECRET_KEY
+   npm run deploy
+   ```
+
+For local development, copy `.dev.vars.example` to `.dev.vars`, set `EMAIL_PROVIDER=mailjet`, and uncomment/set both keys. Local Mailjet sends are real emails and use your account quota.
+
+The adapter uses [Mailjet Send API v3.1](https://dev.mailjet.com/docs/email-api/send-api-v31/send-basic-email) at `api.mailjet.com`, supporting To/Cc/Bcc, sender name, Reply-To, HTML/plain text, reply headers, regular attachments and inline CID attachments. Use an API key for this endpoint. Mailjet's free plan and account limits apply; see [current Mailjet pricing](https://www.mailjet.com/pricing/). This replaces only outbound sending; other Cloudflare services still have their own usage limits and billing.
+
+The web API waits for the selected provider to accept the message before saving it in Sent. Provider/configuration errors return an error to the composer; AI/MCP tools also report send failures. Acceptance does not guarantee delivery to the recipient's inbox. On a timeout or a storage failure after provider acceptance, check provider activity before manually retrying.
+
+#### Switch back to Cloudflare
+
+Enable Cloudflare Email Service for your account/domain, set `vars.EMAIL_PROVIDER` to `"cloudflare"`, restore the original binding below if removed, and redeploy. Also update `.dev.vars` when switching local development. Existing mailbox data stays in the same Cloudflare storage; no migration is needed. Mailjet secrets can remain unused or be deleted.
+
+```json
+"send_email": [{ "name": "EMAIL", "remote": true }]
+```
+
+### Validation
+
+```bash
+npm test
+npm run typecheck
+npm run build
+```
+
+Tests mock both providers and never send real mail. Before using a new deployment, send a controlled test from a verified mailbox and check delivery, a reply and an attachment in the receiving mailbox.
+
 ### Deploy
 
 ```bash
@@ -72,7 +118,7 @@ npm run deploy
 
 - Cloudflare account with a domain
 - [Email Routing](https://developers.cloudflare.com/email-routing/) enabled for receiving
-- [Email Service](https://developers.cloudflare.com/email-service/) enabled for sending
+- [Email Service](https://developers.cloudflare.com/email-service/) enabled for sending, **or** a Mailjet account with a verified sender/domain and API credentials
 - [Workers AI](https://developers.cloudflare.com/workers-ai/) enabled (for the agent)
 - [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) configured for deployed/shared environments (required in production)
 
