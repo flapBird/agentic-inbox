@@ -29,8 +29,8 @@ try {
 		console.log("Save this JSON as the SEND_API_KEYS Worker secret. Keep existing entries when adding a website:");
 		console.log(JSON.stringify([{ name: "my-website", key: randomBytes(32).toString("hex"), from: senders }], null, 2));
 	} else {
-		const password = await passwordPrompt("Admin password (16–1024 characters, hidden): ");
-		if (password.length < 16 || password.length > 1024) throw new Error("Use a password between 16 and 1024 characters.");
+		const password = await passwordPrompt("Admin password (6–1024 characters, hidden): ");
+		if (password.length < 6 || password.length > 1024) throw new Error("Use a password between 6 and 1024 characters.");
 		if (password !== await passwordPrompt("Confirm password: ")) throw new Error("Passwords do not match.");
 		console.log("Store these values as Worker secrets (do not commit them):");
 		console.log(`ADMIN_PASSWORD_HASH=${await hashPassword(password, randomBytes(16).toString("hex"))}`);

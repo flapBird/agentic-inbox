@@ -10,7 +10,7 @@
 npm run auth:password
 ```
 
-按提示输入并确认至少 16 字符的密码（输入不回显）。脚本输出带随机盐的 `ADMIN_PASSWORD_HASH` 和随机 `SESSION_SECRET`，不保存明文密码。分别添加以下 Worker Secrets，也可以在 Cloudflare 控制台的 Worker → Settings → Variables and Secrets 中添加：
+按提示输入并确认至少 6 字符的密码（输入不回显）。脚本输出带随机盐的 `ADMIN_PASSWORD_HASH` 和随机 `SESSION_SECRET`，不保存明文密码。分别添加以下 Worker Secrets，也可以在 Cloudflare 控制台的 Worker → Settings → Variables and Secrets 中添加：
 
 ```bash
 npx wrangler secret put AUTH_MODE
