@@ -785,11 +785,25 @@ export class MailboxDO extends DurableObject<Env> {
 
 	// ── Rate limiting (raw SQL) ────────────────────────────────────
 
+	/** Atomic persistent limiter; callers use dedicated __rate__ object names. */
+	async consumeRequestLimit(limit: number, windowMs: number): Promise<boolean> {
+		return this.ctx.storage.transaction(async (tx) => {
+			const now = Date.now();
+			let state = await tx.get<{ count: number; expires: number }>("requestLimit");
+			if (!state || state.expires <= now) state = { count: 0, expires: now + windowMs };
+			if (state.count >= limit) return false;
+			state.count++;
+			await tx.put("requestLimit", state);
+			return true;
+		});
+	}
+
 	/**
 	 * Check if the mailbox has exceeded the send rate limit.
 	 * Limits: 20 emails per hour, 100 per day per mailbox.
 	 * Returns null if under limit, or an error message string if exceeded.
 	 */
+
 	async checkSendRateLimit(): Promise<string | null> {
 		const hourRow = [...this.ctx.storage.sql.exec(
 			`SELECT COUNT(*) as cnt FROM emails

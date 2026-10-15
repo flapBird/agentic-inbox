@@ -1,4 +1,4 @@
-# Cloudflare Access (required in production). TEAM_DOMAIN may be the base Access URL or the full /cdn-cgi/access/certs URL.
+# Cloudflare Access (required in production only for AUTH_MODE=access). TEAM_DOMAIN may be the base Access URL or the full /cdn-cgi/access/certs URL.
 POLICY_AUD=your-access-policy-audience-tag
 TEAM_DOMAIN=https://your-team.cloudflareaccess.com
 
@@ -7,3 +7,13 @@ EMAIL_PROVIDER=cloudflare
 # Required only with EMAIL_PROVIDER=mailjet. Production: use wrangler secret put.
 # MAILJET_API_KEY=your-mailjet-api-key
 # MAILJET_SECRET_KEY=your-mailjet-secret-key
+
+# Optional personal login. Keep unset for the existing local-development bypass.
+# Production: set AUTH_MODE=password, ADMIN_USERNAME, ADMIN_PASSWORD_HASH, SESSION_SECRET.
+# Password mode requires HTTPS. Generate credentials with npm run auth:password.
+# AUTH_MODE=password
+# ADMIN_USERNAME=admin
+# ADMIN_PASSWORD_HASH=generated-value
+# SESSION_SECRET=generated-value
+# Generate scoped API keys with npm run auth:api-key -- hello@example.com.
+# SEND_API_KEYS='[{"name":"site-a","key":"random-key-at-least-32-characters","from":["hello@example.com"]}]'

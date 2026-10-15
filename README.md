@@ -23,7 +23,7 @@ https://github.com/cloudflare/agentic-inbox/issues/4#issuecomment-4269118513
 
      [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/agentic-inbox)
 
-2. **Configure Cloudflare Access** -- Enable [one-click Cloudflare Access](https://developers.cloudflare.com/changelog/post/2025-10-03-one-click-access-for-workers/) on your Worker under Settings > Domains & Routes. The modal will show your `POLICY_AUD` and `TEAM_DOMAIN` values. `TEAM_DOMAIN` can be either your Access team URL or the full `.../cdn-cgi/access/certs` URL. **You must set these as secrets for your Worker.**
+2. **Configure authentication** -- For personal username/password login without Zero Trust, follow [Personal deployment and website API](docs/personal-deployment.md). To keep the default Cloudflare Access mode: Enable [one-click Cloudflare Access](https://developers.cloudflare.com/changelog/post/2025-10-03-one-click-access-for-workers/) on your Worker under Settings > Domains & Routes. The modal will show your `POLICY_AUD` and `TEAM_DOMAIN` values. `TEAM_DOMAIN` can be either your Access team URL or the full `.../cdn-cgi/access/certs` URL. **You must set these as secrets for your Worker.**
 3. **Set up Email Routing** -- In the Cloudflare dashboard, go to your domain > Email Routing and create a catch-all rule that forwards to this Worker
 4. **Configure outbound email** -- Use Cloudflare Email Service (the default, with the `send_email` binding), or configure Mailjet using the [provider setup below](#outbound-email-provider). Incoming mail continues to use Cloudflare Email Routing in either case.
 5. **Create a mailbox** -- Visit your deployed app and create a mailbox for any address on your domain (e.g. `hello@example.com`)
@@ -32,7 +32,7 @@ https://github.com/cloudflare/agentic-inbox/issues/4#issuecomment-4269118513
 
 1. If you see `Invalid or expired Access token`, that usually means `POLICY_AUD` or `TEAM_DOMAIN` secrets are incorrect.
    * Resolution: [turn Access off and back on for the Worker to get the Access modal again](https://developers.cloudflare.com/changelog/post/2025-10-03-one-click-access-for-workers/), then reset your Worker secrets to the latest `POLICY_AUD` and `TEAM_DOMAIN` values shown there.
-2. If you see `Cloudflare Access must be configured in production`, this application is intentionally enforcing Cloudflare Access so your inbox is not exposed to anyone on the internet.
+2. If you see `Cloudflare Access must be configured in production`, the default Access mode is active but its credentials are missing. Configure Access, or follow the personal login guide to explicitly select password mode.
    * Resolution: enable Access using [one-click Cloudflare Access for Workers](https://developers.cloudflare.com/changelog/post/2025-10-03-one-click-access-for-workers/), then set the `POLICY_AUD` and `TEAM_DOMAIN` Worker secrets from the modal values.
 
 ## Features
@@ -48,7 +48,11 @@ https://github.com/cloudflare/agentic-inbox/issues/4#issuecomment-4269118513
 - **Frontend:** React 19, React Router v7, Tailwind CSS, Zustand, TipTap, `@cloudflare/kumo`
 - **Backend:** Hono, Cloudflare Workers, Durable Objects (SQLite), R2, Email Routing
 - **AI Agent:** Cloudflare Agents SDK (`AIChatAgent`), AI SDK v6, Workers AI (`@cf/moonshotai/kimi-k2.5`), `react-markdown` + `remark-gfm`
-- **Auth:** Cloudflare Access JWT validation (required outside local development)
+- **Auth:** Personal username/password login with secure sessions, or Cloudflare Access (default); scoped API keys for website sending
+
+## Personal login and website sending
+
+See [the deployment guide](docs/personal-deployment.md) to use a personal account/password without Cloudflare Access and let your website servers send emails through one provider-independent API. API-sent messages are stored in Sent. Each website can have its own revocable key and sender allowlist.
 
 ## Getting Started
 
@@ -102,6 +106,7 @@ Enable Cloudflare Email Service for your account/domain, set `vars.EMAIL_PROVIDE
 
 ```bash
 npm test
+npm run test:auth-runtime
 npm run typecheck
 npm run build
 ```
@@ -120,9 +125,9 @@ npm run deploy
 - [Email Routing](https://developers.cloudflare.com/email-routing/) enabled for receiving
 - [Email Service](https://developers.cloudflare.com/email-service/) enabled for sending, **or** a Mailjet account with a verified sender/domain and API credentials
 - [Workers AI](https://developers.cloudflare.com/workers-ai/) enabled (for the agent)
-- [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) configured for deployed/shared environments (required in production)
+- Authentication configured: [personal password login](docs/personal-deployment.md) or [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
 
-Any user who passes the shared Cloudflare Access policy can access all mailboxes in this app by design. This includes the MCP server at `/mcp` -- external AI tools (Claude Code, Cursor, etc.) connected via MCP can operate on any mailbox by passing a `mailboxId` parameter. There is no per-mailbox authorization; the Cloudflare Access policy is the single trust boundary.
+In Access mode, any user who passes the shared Cloudflare Access policy can access all mailboxes in this app by design. In password mode, the single administrator account has the same full mailbox access. This includes the MCP server at `/mcp` -- external AI tools (Claude Code, Cursor, etc.) connected via MCP can operate on any mailbox by passing a `mailboxId` parameter. There is no per-mailbox administrator isolation. Website API keys are separate: they only authorize `POST /api/v1/send` with explicitly allowed sender addresses, and cannot read mailboxes or use MCP.
 
 ## Architecture
 

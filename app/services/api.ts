@@ -41,7 +41,8 @@ async function request<T>(
 		});
 
 		if (!res.ok) {
-			const body = await res.json().catch(() => ({}));
+			const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+			if (res.status === 401 && body.loginUrl === "/auth/login" && typeof window !== "undefined") window.location.assign("/auth/login");
 			throw new ApiError(res.status, body as Record<string, unknown>);
 		}
 
@@ -97,7 +98,7 @@ interface EmailListResponse {
 const api = {
 	// Config
 	getConfig: () =>
-		get<{ domains: string[]; emailAddresses: string[] }>("/api/v1/config"),
+		get<{ domains: string[]; emailAddresses: string[]; authMode: string }>("/api/v1/config"),
 
 	// Mailboxes
 	listMailboxes: () => get<Mailbox[]>("/api/v1/mailboxes"),

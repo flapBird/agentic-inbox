@@ -145,6 +145,7 @@ export default function HomeRoute() {
 				<div className="mb-8">
 					<div className="flex items-center justify-between">
 						<h1 className="text-2xl font-bold text-kumo-default">Mailboxes</h1>
+						{configData?.authMode === "password" && <a href="/auth/logout" className="text-sm text-kumo-subtle underline">Sign out</a>}
 						{!isConfigured && (
 							<Button
 								variant="primary"

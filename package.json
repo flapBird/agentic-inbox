@@ -15,6 +15,9 @@
 	"scripts": {
 		"build": "react-router build",
 		"test": "node --import tsx --test tests/*.test.ts",
+		"test:auth-runtime": "node tests/auth-runtime.mjs",
+		"auth:password": "tsx scripts/auth-credentials.ts",
+		"auth:api-key": "tsx scripts/auth-credentials.ts api-key",
 		"cf-typegen": "wrangler types",
 		"deploy": "npm run build && wrangler deploy",
 		"dev": "react-router dev",

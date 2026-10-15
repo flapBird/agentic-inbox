@@ -10,9 +10,9 @@
 		"nodejs_compat"
 	],
 	"vars": {
-		// Production deploys must also define POLICY_AUD and TEAM_DOMAIN.
-		// TEAM_DOMAIN may be the base Access URL or the full /cdn-cgi/access/certs URL.
-		// The worker now fails closed outside local development if Access is not configured.
+		// Authentication defaults to Cloudflare Access (POLICY_AUD + TEAM_DOMAIN).
+		// Personal login: set AUTH_MODE=password plus ADMIN_USERNAME, ADMIN_PASSWORD_HASH,
+		// SESSION_SECRET as Worker secrets. See docs/personal-deployment.md.
 		"DOMAINS": "example.com",
 		"EMAIL_ADDRESSES": [],
 		// cloudflare (default) or mailjet. See README for Mailjet secrets and binding setup.
