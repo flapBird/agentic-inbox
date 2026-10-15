@@ -36,7 +36,8 @@ export function createAuthRoutes() {
 	const app = new Hono<{ Bindings: Env }>();
 	app.use("*", async (c, next) => {
 		c.header("Cache-Control", "no-store");
-		c.header("Referrer-Policy", "no-referrer");
+		// Same-origin HTML form POSTs must retain Origin for the CSRF check below.
+		c.header("Referrer-Policy", "same-origin");
 		c.header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
 		if (authMode(c.env) !== "password") return c.notFound();
 		if (!configured(c.env)) return c.text("Password login is not configured. Set ADMIN_USERNAME, ADMIN_PASSWORD_HASH and SESSION_SECRET.", 503);

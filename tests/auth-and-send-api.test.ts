@@ -44,7 +44,10 @@ test("password login returns a secure session, protects admin and supports logou
 	assert.equal(denied.status, 302);
 	assert.equal(denied.headers.get("Location"), "/auth/login");
 	const page = await app.request(`${base}/auth/login`, {}, env);
+	assert.equal(page.headers.get("Referrer-Policy"), "same-origin");
 	assert.match(await page.text(), /autocomplete="current-password"/);
+	const logoutPage = await app.request(`${base}/auth/logout`, {}, env);
+	assert.equal(logoutPage.headers.get("Referrer-Policy"), "same-origin");
 	const login = await app.request(`${base}/auth/login`, { method: "POST", headers: { Origin: base, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ username: "admin", password }) }, env);
 	assert.equal(login.status, 303);
 	const cookie = login.headers.get("Set-Cookie")!;
@@ -81,7 +84,11 @@ test("CSRF and cross-origin WebSockets are blocked, same-origin operations work"
 	const { env, app } = fixture();
 	const cookie = `__Host-inbox_session=${await createSession(env)}`;
 	for (const path of ["/auth/login", "/auth/logout", "/api/v1/mailboxes"]) {
-		assert.equal((await app.request(`${base}${path}`, { method: "POST", headers: { Cookie: cookie, Origin: "https://evil.example.com" } }, env)).status, 403);
+		for (const origin of ["https://evil.example.com", "null", undefined]) {
+			const headers: Record<string, string> = { Cookie: cookie };
+			if (origin !== undefined) headers.Origin = origin;
+			assert.equal((await app.request(`${base}${path}`, { method: "POST", headers }, env)).status, 403);
+		}
 	}
 	assert.equal((await app.request(`${base}/agents/test`, { headers: { Cookie: cookie, Upgrade: "websocket", Origin: "https://evil.example.com" } }, env)).status, 403);
 	assert.equal((await app.request(`${base}/agents/test`, { headers: { Cookie: cookie, Upgrade: "websocket", Origin: base } }, env)).status, 200);

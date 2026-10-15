@@ -129,3 +129,7 @@ if (!response.ok) throw new Error(result.error || "发送失败");
 需要恢复原有 Access 登录时，设置 `AUTH_MODE=access`（或删除该设置），配置 `POLICY_AUD` / `TEAM_DOMAIN`，并在域名上启用 Access。网站接口仍单独验证 Bearer Key，但如果 Cloudflare 边缘 Access 保护整个域名，还需在 Access 中为 `/api/v1/send` 配置明确的 Bypass 路径策略，或通过网站服务端另外提供 Access Service Token；后者也不能替代发件 Key。个人模式无需这些 Access 配置。
 
 `DOMAINS` 是邮箱域名列表，Worker 自定义域名是管理后台和 API 的访问地址，两者可以不同。无需修改已有邮箱数据或迁移数据库。
+
+## 登录报错排查
+
+`Invalid request origin` 表示表单来源校验失败，尚未验证账号密码。旧版本登录页的 `Referrer-Policy: no-referrer` 会使浏览器表单提交携带 `Origin: null`；更新并重新部署修复版本后，重新打开 `/auth/login` 再登录，不要直接重新提交旧页面。当前登录和退出页使用 `same-origin` 策略，仍拒绝缺失、`null` 或跨站来源。如果更新后仍报错，请在独立标签页直接打开后台网址，检查代理是否改写域名或响应头。
