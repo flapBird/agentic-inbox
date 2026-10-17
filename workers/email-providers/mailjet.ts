@@ -25,6 +25,20 @@ function recipients(value: string | string[]) {
 	return (Array.isArray(value) ? value : [value]).map((Email) => ({ Email }));
 }
 
+// Only emit known diagnostic labels. Raw messages, stacks and causes can contain
+// credentials, request headers or email content, even when thrown by fetch.
+function failureDetails(error: unknown) {
+	const value = error instanceof Error ? error : undefined;
+	const cause = value?.cause;
+	const code = cause && typeof cause === "object" && "code" in cause
+		? cause.code : value && "code" in value ? value.code : undefined;
+	const knownCodes = ["ENOTFOUND", "EAI_AGAIN", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "CERT_HAS_EXPIRED", "UNABLE_TO_VERIFY_LEAF_SIGNATURE"];
+	const errorCode = typeof code === "string" && knownCodes.includes(code) ? code : "UNKNOWN";
+	const errorType = value && ["Error", "TypeError", "TimeoutError", "AbortError", "InvalidCharacterError"].includes(value.name)
+		? value.name : "UnknownError";
+	return { errorType, errorCode };
+}
+
 /** Mailjet Send API v3.1. The returned UUID is a provider ID, not an SMTP Message-ID. */
 export async function sendMailjetEmail(
 	env: Pick<EmailSenderEnv, "MAILJET_API_KEY" | "MAILJET_SECRET_KEY">,
@@ -61,8 +75,10 @@ export async function sendMailjetEmail(
 	}
 
 	let response: Response;
+	const startedAt = Date.now();
+	let stage: "prepare_request" | "fetch" = "prepare_request";
 	try {
-		response = await fetch("https://api.mailjet.com/v3.1/send", {
+		const init: RequestInit = {
 			method: "POST",
 			headers: {
 				Authorization: `Basic ${btoa(`${apiKey}:${secretKey}`)}`,
@@ -71,8 +87,17 @@ export async function sendMailjetEmail(
 			body: JSON.stringify({ Messages: [message] }),
 			signal: AbortSignal.timeout(25_000),
 			redirect: "error",
+		};
+		stage = "fetch";
+		response = await fetch("https://api.mailjet.com/v3.1/send", init);
+	} catch (error) {
+		console.error("mailjet_send_failed", {
+			provider: "mailjet",
+			stage,
+			elapsedMs: Date.now() - startedAt,
+			timeoutMs: 25_000,
+			...failureDetails(error),
 		});
-	} catch {
 		// A failed/timeout request may already have been accepted. Do not retry it here.
 		throw new EmailSendError("Mailjet request failed or timed out; delivery is unconfirmed. Check Mailjet activity before retrying.", "MAILJET_NETWORK_ERROR");
 	}

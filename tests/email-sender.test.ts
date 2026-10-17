@@ -117,3 +117,40 @@ test("Cloudflare binding errors retain the original error and code", async () =>
 	const error = Object.assign(new Error("Rejected"), { code: "CF_REJECTED" });
 	await assert.rejects(sendEmail({ EMAIL: { send: async () => { throw error; } } as never }, basic), (actual) => actual === error);
 });
+
+test("Mailjet logs timing and known failure causes without logging sensitive exception data", async () => {
+	const log = mock.method(console, "error", () => {});
+	const sensitive = `${env.MAILJET_API_KEY} ${env.MAILJET_SECRET_KEY} ${basic.to} ${basic.text}`;
+	const failures = [
+		{ error: new TypeError(sensitive, { cause: Object.assign(new Error(sensitive), { code: "ENOTFOUND" }) }), type: "TypeError", code: "ENOTFOUND" },
+		{ error: new DOMException(sensitive, "TimeoutError"), type: "TimeoutError", code: "UNKNOWN" },
+		{ error: Object.assign(new Error(sensitive), { name: sensitive, code: sensitive }), type: "UnknownError", code: "UNKNOWN" },
+		{ error: sensitive, type: "UnknownError", code: "UNKNOWN" },
+	];
+	let current: unknown;
+	const fetch = mock.method(globalThis, "fetch", async () => { throw current; });
+	for (const { error, type, code } of failures) {
+		current = error;
+		await assert.rejects(sendEmail(env, basic), { code: "MAILJET_NETWORK_ERROR" });
+		const [event, details] = log.mock.calls.at(-1)!.arguments as unknown as [string, Record<string, unknown>];
+		assert.equal(event, "mailjet_send_failed");
+		assert.deepEqual(details, { provider: "mailjet", stage: "fetch", elapsedMs: details.elapsedMs, timeoutMs: 25_000, errorType: type, errorCode: code });
+		assert.ok(typeof details.elapsedMs === "number" && details.elapsedMs >= 0);
+		for (const privateValue of [env.MAILJET_API_KEY, env.MAILJET_SECRET_KEY, basic.to as string, basic.text!]) {
+			assert.ok(!JSON.stringify(log.mock.calls).includes(privateValue));
+		}
+	}
+	assert.equal(log.mock.callCount(), failures.length);
+	assert.equal(fetch.mock.callCount(), failures.length);
+});
+
+test("Mailjet identifies credential encoding failures before contacting the provider", async () => {
+	const log = mock.method(console, "error", () => {});
+	const fetch = mock.method(globalThis, "fetch", async () => Response.json(success));
+	await assert.rejects(sendEmail({ ...env, MAILJET_SECRET_KEY: "非拉丁字符" }, basic), { code: "MAILJET_NETWORK_ERROR" });
+	const [, details] = log.mock.calls[0].arguments as unknown as [string, Record<string, unknown>];
+	assert.equal(details.stage, "prepare_request");
+	assert.equal(details.errorType, "InvalidCharacterError");
+	assert.equal(fetch.mock.callCount(), 0);
+	assert.ok(!JSON.stringify(log.mock.calls).includes("非拉丁字符"));
+});
