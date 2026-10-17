@@ -86,7 +86,8 @@ export async function sendMailjetEmail(
 			},
 			body: JSON.stringify({ Messages: [message] }),
 			signal: AbortSignal.timeout(25_000),
-			redirect: "error",
+			// Workers requires manual mode to reject redirects without forwarding credentials.
+			redirect: "manual",
 		};
 		stage = "fetch";
 		response = await fetch("https://api.mailjet.com/v3.1/send", init);

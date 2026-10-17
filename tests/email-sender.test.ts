@@ -30,7 +30,7 @@ test("Mailjet maps the complete message and uses Basic auth without requiring EM
 	const fetch = mock.method(globalThis, "fetch", async (url, init) => {
 		assert.equal(url, "https://api.mailjet.com/v3.1/send");
 		assert.equal(init?.method, "POST");
-		assert.equal(init?.redirect, "error");
+		assert.equal(init?.redirect, "manual");
 		assert.ok(init?.signal instanceof AbortSignal);
 		assert.deepEqual(init?.headers, { Authorization: `Basic ${btoa("test-key:test-secret")}`, "Content-Type": "application/json" });
 		assert.deepEqual(JSON.parse(init?.body as string), { Messages: [{

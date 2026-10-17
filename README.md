@@ -94,6 +94,8 @@ The adapter uses [Mailjet Send API v3.1](https://dev.mailjet.com/docs/email-api/
 
 The web API waits for the selected provider to accept the message before saving it in Sent. Provider/configuration errors return an error to the composer; AI/MCP tools also report send failures. Acceptance does not guarantee delivery to the recipient's inbox. On a timeout or a storage failure after provider acceptance, check provider activity before manually retrying.
 
+Mailjet requests use `redirect: "manual"` for Workers runtime compatibility; redirect responses are rejected without following the target or forwarding credentials.
+
 For Mailjet request failures, inspect Worker logs (or run `npx wrangler tail`) for `mailjet_send_failed`. The structured event includes `stage` (`prepare_request` or `fetch`), `elapsedMs`, `timeoutMs`, an allowlisted `errorType`, and an allowlisted network/TLS `errorCode` when available. Unknown values are reported as `UnknownError`/`UNKNOWN`; raw exception messages, stacks, credentials and email content are not logged. `TimeoutError` indicates the request timed out; `ENOTFOUND`/`EAI_AGAIN` indicate DNS failures; `InvalidCharacterError` during preparation can indicate credentials that cannot be Basic-auth encoded. These diagnostics require deploying the updated Worker and do not trigger automatic retries.
 
 #### Switch back to Cloudflare
@@ -109,6 +111,7 @@ Enable Cloudflare Email Service for your account/domain, set `vars.EMAIL_PROVIDE
 ```bash
 npm test
 npm run test:auth-runtime
+npm run test:mailjet-runtime
 npm run typecheck
 npm run build
 ```
