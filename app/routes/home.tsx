@@ -1,3 +1,4 @@
+import { AdminConfig } from "~/components/admin-config";
 // Copyright (c) 2026 Cloudflare, Inc.
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
@@ -8,7 +9,6 @@ import {
 	Empty,
 	Input,
 	Loader,
-	Select,
 	Text,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
@@ -45,7 +45,6 @@ export default function HomeRoute() {
 
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [newPrefix, setNewPrefix] = useState("");
-	const [selectedDomain, setSelectedDomain] = useState("");
 	const [newName, setNewName] = useState("");
 	const [isCreating, setIsCreating] = useState(false);
 	const [createError, setCreateError] = useState<string | null>(null);
@@ -55,13 +54,6 @@ export default function HomeRoute() {
 		email: string;
 	} | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
-
-	// Set default domain when config loads
-	useEffect(() => {
-		if (domains.length > 0 && !selectedDomain) {
-			setSelectedDomain(domains[0]);
-		}
-	}, [domains, selectedDomain]);
 
 	// Auto-create mailboxes from config (run once when both data sources are ready)
 	const autoCreateDone = useRef(false);
@@ -92,12 +84,12 @@ export default function HomeRoute() {
 	const handleCreate = async (e: FormEvent) => {
 		e.preventDefault();
 		setCreateError(null);
-		if (!newPrefix || !selectedDomain) {
+		if (!newPrefix.trim()) {
 			setCreateError("Please fill in all fields");
 			return;
 		}
-		const email = `${newPrefix}@${selectedDomain}`;
-		const name = newName || newPrefix;
+		const email = newPrefix.trim().toLowerCase();
+		const name = newName.trim() || email.split("@")[0];
 		setIsCreating(true);
 		try {
 			await createMailbox.mutateAsync({ email, name });
@@ -141,15 +133,13 @@ export default function HomeRoute() {
 
 	return (
 		<div className="min-h-screen bg-kumo-recessed">
+			<div className="flex justify-end px-6 pt-4">{configData?.authMode === "password" && <a href="/auth/logout" className="text-sm text-kumo-subtle underline">Sign out</a>}</div>
 			<div className="mx-auto max-w-2xl px-4 py-8 md:px-6 md:py-16">
-				<nav aria-label="全局导航" className="flex flex-wrap gap-5 mb-6 text-sm">
-					<RouterLink to="/" aria-current="page" className="font-semibold">邮箱管理</RouterLink>
-					<RouterLink to="/settings" className="text-kumo-subtle underline">系统设置</RouterLink>
-				</nav>
+
 				<div className="mb-8">
 					<div className="flex items-center justify-between">
 						<h1 className="text-2xl font-bold text-kumo-default">Mailboxes</h1>
-						{configData?.authMode === "password" && <a href="/auth/logout" className="text-sm text-kumo-subtle underline">Sign out</a>}
+
 						{!isConfigured && (
 							<Button
 								variant="primary"
@@ -245,6 +235,8 @@ export default function HomeRoute() {
 				)}
 			</div>
 
+			<div className="mx-auto max-w-2xl px-4 pb-8"><details><summary className="cursor-pointer mb-4">收件配置</summary><AdminConfig /></details></div>
+
 			{/* Create Dialog */}
 			<Dialog.Root open={isCreateOpen} onOpenChange={setIsCreateOpen}>
 				<Dialog size="sm" className="p-6">
@@ -261,40 +253,8 @@ export default function HomeRoute() {
 							<span className="text-sm font-medium text-kumo-default mb-1.5 block">
 								Email Address
 							</span>
-							<div className="flex items-center gap-2">
-								<div className="flex-1">
-									<Input
-										aria-label="Address prefix"
-										placeholder="info"
-										size="sm"
-										value={newPrefix}
-										onChange={(e) => setNewPrefix(e.target.value)}
-										required
-									/>
-								</div>
-								<span className="text-sm text-kumo-subtle">@</span>
-								{domains.length > 1 ? (
-									<div className="flex-1">
-							<Select
-								aria-label="Domain"
-								value={selectedDomain}
-								onValueChange={(value) => {
-									if (value) setSelectedDomain(value);
-								}}
-							>
-											{domains.map((d) => (
-												<Select.Option key={d} value={d}>
-													{d}
-												</Select.Option>
-											))}
-										</Select>
-									</div>
-								) : (
-									<span className="text-sm text-kumo-subtle">
-										{selectedDomain || "no domain"}
-									</span>
-								)}
-							</div>
+							<Input aria-label="完整邮箱地址" type="email" placeholder="support@your-domain.com" value={newPrefix} onChange={(e) => setNewPrefix(e.target.value)} required />
+                            <p className="mt-2 text-xs text-kumo-subtle">输入完整邮箱地址。域名需完成 Cloudflare Email Routing；发件还需 Mailjet 验证。</p>
 						</div>
 						<Input
 							label="Display Name (optional)"
@@ -316,7 +276,7 @@ export default function HomeRoute() {
 								variant="primary"
 								size="sm"
 								loading={isCreating}
-								disabled={!selectedDomain}
+								disabled={!newPrefix.trim()}
 							>
 								Create
 							</Button>

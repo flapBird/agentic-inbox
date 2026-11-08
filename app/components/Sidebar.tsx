@@ -145,7 +145,6 @@ export default function Sidebar() {
 				</div>
 			</div>
 
-			<NavLink to="/settings" onClick={closeSidebar} className="mx-4 my-2 text-sm text-kumo-subtle hover:text-kumo-default">系统设置（全局）</NavLink>
 
 			{/* Compose */}
 			<div className="px-3 py-3">

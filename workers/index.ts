@@ -99,7 +99,9 @@ app.get("/api/v1/mailboxes", async (c) => {
 });
 
 app.post("/api/v1/mailboxes", async (c) => {
-	const { name, settings, email: rawEmail } = CreateMailboxBody.parse(await c.req.json());
+	const parsed = CreateMailboxBody.safeParse(await c.req.json().catch(() => null));
+	if (!parsed.success) return c.json({ error: "请输入有效的完整邮箱地址，例如 support@your-domain.com" }, 400);
+	const { name, settings, email: rawEmail } = parsed.data;
 	const email = rawEmail.toLowerCase();
 	const allowedAddresses = (await receivingConfig(c.env)).emailAddresses;
 	if (allowedAddresses.length > 0 && !allowedAddresses.map((a) => a.toLowerCase()).includes(email)) {
