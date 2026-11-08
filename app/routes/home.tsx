@@ -142,6 +142,10 @@ export default function HomeRoute() {
 	return (
 		<div className="min-h-screen bg-kumo-recessed">
 			<div className="mx-auto max-w-2xl px-4 py-8 md:px-6 md:py-16">
+				<nav aria-label="全局导航" className="flex flex-wrap gap-5 mb-6 text-sm">
+					<RouterLink to="/" aria-current="page" className="font-semibold">邮箱管理</RouterLink>
+					<RouterLink to="/settings" className="text-kumo-subtle underline">系统设置</RouterLink>
+				</nav>
 				<div className="mb-8">
 					<div className="flex items-center justify-between">
 						<h1 className="text-2xl font-bold text-kumo-default">Mailboxes</h1>

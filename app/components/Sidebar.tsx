@@ -133,7 +133,7 @@ export default function Sidebar() {
 					className="flex items-center gap-1.5 text-kumo-subtle text-sm hover:text-kumo-default transition-colors mb-2.5 cursor-pointer bg-transparent border-0 p-0"
 				>
 					<CaretLeftIcon size={14} />
-					<span>Mailboxes</span>
+					<span>邮箱管理</span>
 				</button>
 				<div className="px-1">
 					<div className="text-base font-semibold text-kumo-default truncate">
@@ -144,6 +144,8 @@ export default function Sidebar() {
 					</div>
 				</div>
 			</div>
+
+			<NavLink to="/settings" onClick={closeSidebar} className="mx-4 my-2 text-sm text-kumo-subtle hover:text-kumo-default">系统设置（全局）</NavLink>
 
 			{/* Compose */}
 			<div className="px-3 py-3">

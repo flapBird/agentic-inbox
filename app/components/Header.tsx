@@ -129,7 +129,7 @@ export default function Header() {
 						className="hidden lg:inline-flex"
 					/>
 				</Tooltip>
-				<Tooltip content="Settings" side="bottom" asChild>
+				<Tooltip content="Mailbox Settings" side="bottom" asChild>
 					<Button
 						variant={isSettingsActive ? "secondary" : "ghost"}
 						shape="square"
@@ -141,7 +141,7 @@ export default function Header() {
 									: `/mailbox/${mailboxId}/settings`,
 							)
 						}
-						aria-label="Settings"
+						aria-label="Mailbox Settings"
 					/>
 				</Tooltip>
 			</div>

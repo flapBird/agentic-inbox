@@ -1,4 +1,3 @@
-import { AdminConfig } from "~/components/admin-config";
 // Copyright (c) 2026 Cloudflare, Inc.
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
@@ -67,10 +66,9 @@ export default function SettingsRoute() {
 
 	return (
 		<div className="max-w-2xl px-4 py-4 md:px-8 md:py-6 h-full overflow-y-auto">
-			<h1 className="text-lg font-semibold text-kumo-default mb-6">Settings</h1>
+			<h1 className="text-lg font-semibold text-kumo-default mb-6">Mailbox Settings</h1>
 
 			<div className="space-y-6">
-				<AdminConfig />
 				{/* Account */}
 				<div className="rounded-lg border border-kumo-line bg-kumo-base p-5">
 					<div className="text-sm font-medium text-kumo-default mb-4">

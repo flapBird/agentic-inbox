@@ -1,7 +1,10 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "~/queries/keys";
 import { useEffect, useState } from 'react';
 type Key = {id:string;name:string;from:string[]};
 type Receiving = {domains:string[];emailAddresses:string[]};
 export function AdminConfig() {
+ const queryClient = useQueryClient();
  const [keys,setKeys]=useState<{id:string;name:string;from:string[]}[]>([]);
  const [name,setName]=useState(''); const [from,setFrom]=useState(''); const [secret,setSecret]=useState('');
  const [domains,setDomains]=useState(''); const [addresses,setAddresses]=useState(''); const [message,setMessage]=useState(''); const [busy,setBusy]=useState(false); const [ready,setReady]=useState(false);
@@ -20,10 +23,10 @@ export function AdminConfig() {
  <button type="button" onClick={()=>run(async()=>{setSecret('');const r=await request<{key:string}>('keys','POST',{name,from:split(from)});setSecret(r.key);setKeys(await request<Key[]>('keys'));})}>创建 API Key</button>
  {secret&&<div><p>请立即复制并保存在接入服务的后端环境变量中：</p><textarea aria-label="新 API Key" readOnly className={input} value={secret}/><button type="button" onClick={()=>setSecret('')}>隐藏密钥</button></div>}
  {keys.map(k=><div key={k.id} className="border-t border-kumo-line py-2"><strong>{k.name}</strong><p>{k.from.join(', ')}</p><button type="button" onClick={()=>{if(window.confirm(`撤销 ${k.name} 的 Key？对应服务将无法继续发信。`))void run(async()=>{await request('keys/'+k.id,'DELETE');setKeys(await request<Key[]>('keys'));setMessage('已撤销');});}}>撤销</button></div>)}
- <h3>收件配置</h3><p className="text-sm">保存后覆盖配置文件中的域名及邮箱白名单，无需重新部署。域名首次接入仍需在 Cloudflare 配置 MX 和 Email Routing，将邮件路由到本 Worker；此页面不修改 DNS。保存后通过现有添加邮箱入口创建邮箱。</p>
+ <h3>收件配置</h3><p className="text-sm">保存后覆盖配置文件中的域名及邮箱白名单，无需重新部署。域名首次接入仍需在 Cloudflare 配置 MX 和 Email Routing，将邮件路由到本 Worker；此页面不修改 DNS。保存后返回邮箱管理，白名单中的邮箱会自动创建；未设置白名单时可手动新增邮箱。</p>
  <label>域名（每行一个）<textarea className={input} value={domains} onChange={e=>setDomains(e.target.value)}/></label>
  <label>允许收件邮箱（每行一个）<textarea className={input} value={addresses} onChange={e=>setAddresses(e.target.value)}/></label>
  <p className="text-sm">白名单留空表示不限制地址，但仅保存已创建邮箱的邮件。</p>
- <button type="button" onClick={()=>run(async()=>{await request('receiving','PUT',{domains:split(domains),emailAddresses:split(addresses)});setMessage('已保存，刷新页面后邮箱创建选项同步更新');})}>保存收件配置</button>
+ <button type="button" onClick={()=>run(async()=>{await request('receiving','PUT',{domains:split(domains),emailAddresses:split(addresses)});await queryClient.invalidateQueries({queryKey:queryKeys.config});setMessage('已保存，可返回邮箱管理查看或新增邮箱');})}>保存收件配置</button>
  </fieldset></section>;
 }
