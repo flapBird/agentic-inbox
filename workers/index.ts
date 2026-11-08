@@ -1,4 +1,3 @@
-import { receivingConfig } from "./lib/managed-config";
 // Copyright (c) 2026 Cloudflare, Inc.
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
@@ -87,7 +86,9 @@ app.use("/api/v1/mailboxes/:mailboxId/*", requireMailbox);
 // -- Config ---------------------------------------------------------
 
 app.get("/api/v1/config", async (c) => {
-	const { domains, emailAddresses } = await receivingConfig(c.env);
+	const mailboxes = await listMailboxes(c.env.BUCKET);
+	const emailAddresses = mailboxes.map(m => m.id);
+	const domains = [...new Set(emailAddresses.map(address => address.split("@")[1]))];
 	return c.json({ domains, emailAddresses, authMode: c.env.AUTH_MODE ?? "access" });
 });
 
@@ -103,10 +104,6 @@ app.post("/api/v1/mailboxes", async (c) => {
 	if (!parsed.success) return c.json({ error: "请输入有效的完整邮箱地址，例如 support@your-domain.com" }, 400);
 	const { name, settings, email: rawEmail } = parsed.data;
 	const email = rawEmail.toLowerCase();
-	const allowedAddresses = (await receivingConfig(c.env)).emailAddresses;
-	if (allowedAddresses.length > 0 && !allowedAddresses.map((a) => a.toLowerCase()).includes(email)) {
-		return c.json({ error: "Mailbox creation is restricted to configured EMAIL_ADDRESSES" }, 403);
-	}
 	const key = `mailboxes/${email}.json`;
 	if (await c.env.BUCKET.head(key)) return c.json({ error: "Mailbox already exists" }, 409);
 	const defaultSettings = { fromName: name, forwarding: { enabled: false, email: "" }, signature: { enabled: false, text: "" }, autoReply: { enabled: false, subject: "", message: "" } };
@@ -356,17 +353,15 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 
 	if (!parsedEmail.to?.length || !parsedEmail.to[0].address) throw new Error("received email with empty to");
 
-	const allowedAddresses = (await receivingConfig(env)).emailAddresses.map((a) => a.toLowerCase());
 	const allRecipients = parsedEmail.to.map((t) => t.address?.toLowerCase()).filter(Boolean) as string[];
 	const ccRecipients = (parsedEmail.cc || []).map((e) => e.address?.toLowerCase()).filter(Boolean) as string[];
 	const bccRecipients = (parsedEmail.bcc || []).map((e) => e.address?.toLowerCase()).filter(Boolean) as string[];
 
 	let mailboxId: string | undefined;
-	if (allowedAddresses.length > 0) {
-		mailboxId = allRecipients.find((addr) => allowedAddresses.includes(addr));
-		if (!mailboxId) { console.log(`Ignoring email: no recipient matches EMAIL_ADDRESSES.`); return; }
-	} else { mailboxId = allRecipients[0]; }
-	if (!mailboxId) throw new Error("received email with no valid recipient address");
+	for (const address of allRecipients) {
+		if (await env.BUCKET.head(`mailboxes/${address}.json`)) { mailboxId = address; break; }
+	}
+	if (!mailboxId) { console.log("Ignoring email: no existing recipient mailbox"); return; }
 
 	const messageId = crypto.randomUUID();
 	if (!(await env.BUCKET.head(`mailboxes/${mailboxId}.json`))) { console.log(`Ignoring email for ${mailboxId}: mailbox does not exist`); return; }

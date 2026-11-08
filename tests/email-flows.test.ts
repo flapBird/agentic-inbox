@@ -104,7 +104,7 @@ test('mailbox creation rejects malformed addresses and JSON with 400 instead of 
 
 test('mailbox creation accepts a full address without appending the configured domain', async () => {
  const writes:string[]=[];
- const env={DOMAINS:'example.com',BUCKET:{get:async()=>null,head:async()=>null,put:async(key:string)=>{writes.push(key);}},MAILBOX:{idFromName:(name:string)=>name,get:()=>({getFolders:async()=>[]})}} as unknown as Env;
+ const env={DOMAINS:'example.com',EMAIL_ADDRESSES:['legacy@example.com'],BUCKET:{get:async()=>null,head:async()=>null,put:async(key:string)=>{writes.push(key);}},MAILBOX:{idFromName:(name:string)=>name,get:()=>({getFolders:async()=>[]})}} as unknown as Env;
  const response=await app.request('https://test.example/api/v1/mailboxes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'support@other.org',name:'Support'})},env);
  assert.equal(response.status,201);
  assert.deepEqual(writes,['mailboxes/support@other.org.json']);

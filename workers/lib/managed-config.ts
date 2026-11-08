@@ -11,7 +11,3 @@ export async function managedKeys(env: Env): Promise<ManagedKey[]> {
  const keys = await Promise.all(result.objects.map(async o => (await env.BUCKET.get(o.key))?.json<ManagedKey>()));
  return keys.filter((k): k is ManagedKey => !!k);
 }
-export async function receivingConfig(env: Env): Promise<{domains: string[]; emailAddresses: string[]}> {
- const saved = await env.BUCKET.get('admin/receiving.json');
- return saved ? saved.json() : { domains: (env.DOMAINS || '').split(',').map(s => s.trim()).filter(Boolean), emailAddresses: env.EMAIL_ADDRESSES ?? [] };
-}

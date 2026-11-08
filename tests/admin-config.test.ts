@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createAdminConfig} from '../workers/routes/admin-config';
-import {hashKey,managedKeys,receivingConfig} from '../workers/lib/managed-config';
+import {hashKey,managedKeys} from '../workers/lib/managed-config';
 import type {Env} from '../workers/types';
 test('managed keys show plaintext once, store hashes, revoke and enforce origin',async()=>{
  const data=new Map<string,string>();
@@ -15,8 +15,5 @@ test('managed keys show plaintext once, store hashes, revoke and enforce origin'
  assert.equal((await managedKeys(env))[0].hash,await hashKey(created.key));
  assert.ok(!(await (await call('/keys')).text()).includes('hash'));
  await call('/keys/'+created.id,'DELETE');assert.equal((await managedKeys(env)).length,0);
- assert.equal((await call('/receiving','PUT',{domains:['bad domain'],emailAddresses:[]})).status,400);
- const config={domains:['example.com'],emailAddresses:['support@example.com']};
- assert.equal((await call('/receiving','PUT',config)).status,200);
- assert.deepEqual(await receivingConfig(env),config);
+ assert.equal((await call('/receiving')).status,404);
 });

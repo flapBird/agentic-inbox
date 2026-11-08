@@ -3,11 +3,11 @@ import { AdminConfig } from "~/components/admin-config";
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Badge, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { RobotIcon, ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
-import { useMailbox, useUpdateMailbox } from "~/queries/mailboxes";
+import { useNavigate, useParams } from "react-router";
+import { useDeleteMailbox, useMailbox, useUpdateMailbox } from "~/queries/mailboxes";
 
 // Placeholder shown in the textarea when no custom prompt is set.
 // The authoritative default prompt lives in workers/agent/index.ts (DEFAULT_SYSTEM_PROMPT).
@@ -15,7 +15,12 @@ const PROMPT_PLACEHOLDER = `You are an email assistant that helps manage this in
 
 export default function SettingsRoute() {
 	const { mailboxId } = useParams<{ mailboxId: string }>();
-	const toastManager = useKumoToastManager();
+	const navigate = useNavigate();
+ const deleteMailbox = useDeleteMailbox();
+ const [deleteOpen, setDeleteOpen] = useState(false);
+ const [confirmation, setConfirmation] = useState("");
+ const [deleteError, setDeleteError] = useState("");
+ const toastManager = useKumoToastManager();
 	const { data: mailbox } = useMailbox(mailboxId);
 	const updateMailboxMutation = useUpdateMailbox();
 
@@ -134,6 +139,23 @@ export default function SettingsRoute() {
 						Save Changes
 					</Button>
 				</div>
+                <section className="rounded-lg border border-kumo-line p-5 space-y-3">
+                 <h2 className="font-semibold">删除邮箱</h2>
+                 <p className="text-sm text-kumo-subtle">删除后该邮箱无法继续收发邮件。此操作不代表清除全部历史邮件数据。</p>
+                 <Button variant="destructive" onClick={()=>{setConfirmation('');setDeleteError('');setDeleteOpen(true);}}>删除邮箱</Button>
+                </section>
+                <Dialog.Root open={deleteOpen} onOpenChange={open=>{if(!deleteMailbox.isPending)setDeleteOpen(open);}}>
+                 <Dialog size="sm" className="p-6 space-y-4">
+                  <Dialog.Title>确认删除邮箱</Dialog.Title>
+                  <Dialog.Description>请输入 {mailbox.email} 确认删除。</Dialog.Description>
+                  <Input label="邮箱地址" value={confirmation} onChange={e=>setConfirmation(e.target.value)} />
+                  {deleteError && <p role="alert">{deleteError}</p>}
+                  <div className="flex justify-end gap-2">
+                   <Button disabled={deleteMailbox.isPending} onClick={()=>setDeleteOpen(false)}>取消</Button>
+                   <Button variant="destructive" loading={deleteMailbox.isPending} disabled={confirmation.trim()!==mailbox.email} onClick={async()=>{try{await deleteMailbox.mutateAsync(mailbox.id);navigate('/');}catch{setDeleteError('删除失败，请重试');}}}>确认删除</Button>
+                  </div>
+                 </Dialog>
+                </Dialog.Root>
 			</div>
 		</div>
 	);

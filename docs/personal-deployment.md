@@ -128,7 +128,7 @@ if (!response.ok) throw new Error(result.error || "发送失败");
 
 需要恢复原有 Access 登录时，设置 `AUTH_MODE=access`（或删除该设置），配置 `POLICY_AUD` / `TEAM_DOMAIN`，并在域名上启用 Access。网站接口仍单独验证 Bearer Key，但如果 Cloudflare 边缘 Access 保护整个域名，还需在 Access 中为 `/api/v1/send` 配置明确的 Bypass 路径策略，或通过网站服务端另外提供 Access Service Token；后者也不能替代发件 Key。个人模式无需这些 Access 配置。
 
-`DOMAINS` 是邮箱域名列表，Worker 自定义域名是管理后台和 API 的访问地址，两者可以不同。无需修改已有邮箱数据或迁移数据库。
+邮箱地址的域名与 Worker 自定义域名（管理后台和 API 的访问地址）可以不同；无需维护 `DOMAINS` 列表。无需修改已有邮箱数据或迁移数据库。
 
 ## 登录报错排查
 
@@ -138,6 +138,9 @@ if (!response.ok) throw new Error(result.error || "发送失败");
 
 在对应邮箱的 Settings →「发件 API Key」创建或撤销服务密钥。新 Key 自动限定为当前邮箱，无需重复填写发件地址。明文仅显示一次，后台只保存哈希。历史多邮箱 Key 会出现在所有关联邮箱下，撤销会影响该 Key 的全部发件地址。旧 `SEND_API_KEYS` Secret 仍兼容，需从原 Secret 中撤销。
 
-邮箱管理首页右上角提供退出登录，New Mailbox 直接填写完整邮箱地址，不再拼接配置域名。首页下方「收件配置」可编辑全局域名和白名单，保存后覆盖 `DOMAINS` / `EMAIL_ADDRESSES`，无需重新部署。配置白名单时邮箱自动创建；未设置白名单时可手动创建。白名单为空仍只保存已创建邮箱的邮件。独立系统设置入口已移除，旧 `/settings` 地址跳转到邮箱管理。
+邮箱管理首页右上角提供退出登录，New Mailbox 直接填写完整邮箱地址。已创建的邮箱是收件与列表的唯一依据，无需单独维护域名和收件白名单；旧 `DOMAINS` / `EMAIL_ADDRESSES` 和 R2 `admin/receiving.json` 不再用于限制创建或收件，也不再自动创建邮箱。旧配置文件保留但不再生效。删除后的邮箱不会由旧白名单自动重建。
 
-此页面不会自动配置 DNS 或 Cloudflare Email Routing。新域名仍需完成 MX / Email Routing，将目标地址或 catch-all 路由到本 Worker；新发件地址还需 Mailjet 验证。页面 Key 管理不需要 Cloudflare 管理 API Token。
+删除入口位于对应邮箱 Settings 底部，需要在确认弹窗中输入完整邮箱地址。当前删除会停用邮箱并从列表移除，不代表物理清除历史邮件和附件。独立系统设置入口已移除，旧 `/settings` 地址跳转到邮箱管理。
+
+
+新增邮箱不会自动配置 DNS 或 Cloudflare Email Routing。新域名仍需完成 MX / Email Routing，将目标地址或 catch-all 路由到本 Worker；新发件地址还需 Mailjet 验证。页面 Key 管理不需要 Cloudflare 管理 API Token。
