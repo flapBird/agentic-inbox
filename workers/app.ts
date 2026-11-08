@@ -5,6 +5,7 @@
 import { routeAgentRequest } from "agents";
 import { Hono } from "hono";
 import { createAuthRoutes, requireAdmin } from "./lib/auth";
+import { createAdminConfig } from "./routes/admin-config";
 import { createSendApi } from "./routes/send-api";
 import { createRequestHandler } from "react-router";
 import { app as apiApp, receiveEmail } from "./index";
@@ -44,6 +45,8 @@ app.all("/mcp", async (c) => {
 app.all("/mcp/*", async (c) => {
 	return mcpHandler.fetch(c.req.raw, c.env, c.executionCtx as ExecutionContext);
 });
+
+app.route("/api/v1/admin", createAdminConfig());
 
 // Mount the API routes
 app.route("/", apiApp);

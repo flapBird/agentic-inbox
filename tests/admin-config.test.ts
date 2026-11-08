@@ -1,0 +1,22 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {createAdminConfig} from '../workers/routes/admin-config';
+import {hashKey,managedKeys,receivingConfig} from '../workers/lib/managed-config';
+import type {Env} from '../workers/types';
+test('managed keys show plaintext once, store hashes, revoke and enforce origin',async()=>{
+ const data=new Map<string,string>();
+ const env={BUCKET:{put:async(k:string,v:string)=>data.set(k,v),get:async(k:string)=>data.has(k)?{json:async()=>JSON.parse(data.get(k)!)}:null,head:async()=>({}),delete:async(k:string)=>data.delete(k),list:async()=>({objects:[...data.keys()].filter(k=>k.startsWith('admin/keys/')).map(key=>({key}))})}} as unknown as Env;
+ const app=createAdminConfig();
+ const call=(path:string,method='GET',body?:unknown,origin='https://test.example')=>app.request('https://test.example'+path,{method,headers:{Origin:origin,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)},env);
+ assert.equal((await call('/keys','POST',{name:'Font',from:['support@example.com']},'https://evil.example')).status,403);
+ const response=await call('/keys','POST',{name:'Font',from:['support@example.com']});assert.equal(response.status,201);
+ const created=await response.json() as {id:string;key:string};assert.equal(created.key.length,64);
+ assert.ok(![...data.values()].join('').includes(created.key));
+ assert.equal((await managedKeys(env))[0].hash,await hashKey(created.key));
+ assert.ok(!(await (await call('/keys')).text()).includes('hash'));
+ await call('/keys/'+created.id,'DELETE');assert.equal((await managedKeys(env)).length,0);
+ assert.equal((await call('/receiving','PUT',{domains:['bad domain'],emailAddresses:[]})).status,400);
+ const config={domains:['example.com'],emailAddresses:['support@example.com']};
+ assert.equal((await call('/receiving','PUT',config)).status,200);
+ assert.deepEqual(await receivingConfig(env),config);
+});

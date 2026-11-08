@@ -19,7 +19,7 @@ function fixture() {
 		AUTH_MODE: "password", ADMIN_USERNAME: "admin", ADMIN_PASSWORD_HASH: passwordHash, SESSION_SECRET: "s".repeat(64),
 		SEND_API_KEYS: JSON.stringify([{ name: "site-a", key: apiKey, from: ["hello@example.com"] }]),
 		EMAIL_PROVIDER: "cloudflare", EMAIL: { send: delivered },
-		BUCKET: { head: async () => ({}), put: async () => {} },
+		BUCKET: { list: async () => ({objects:[]}), head: async () => ({}), put: async () => {} },
 		MAILBOX: { idFromName: (name: string) => name, get: (name: string) => ({
 			consumeRequestLimit: async (limit: number) => { const count = (counters.get(name) ?? 0) + 1; counters.set(name, count); return count <= limit; },
 			checkSendRateLimit: async () => null, createEmail: saved,

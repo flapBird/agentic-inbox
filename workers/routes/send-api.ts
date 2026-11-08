@@ -1,3 +1,4 @@
+import { managedKeys, hashKey } from "../lib/managed-config";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
@@ -21,15 +22,18 @@ export function createSendApi() {
 		c.header("Cache-Control", "no-store");
 		if (c.req.method !== "POST" || !["/api/v1/send", "/api/v1/send/", "/"].includes(c.req.path)) return c.json({ error: "Use POST /api/v1/send" }, 405);
 		if (c.req.header("Origin")) return c.json({ error: "Call this endpoint from your website server, not the browser" }, 403);
-		if (!c.env.SEND_API_KEYS) return c.json({ error: "Send API is not configured" }, 503);
+		const managed = await managedKeys(c.env);
+		if (!c.env.SEND_API_KEYS && !managed.length) return c.json({ error: "Send API is not configured" }, 503);
 		let keys: ApiKey[];
-		try { keys = keySchema.parse(JSON.parse(c.env.SEND_API_KEYS)); }
+		try { keys = c.env.SEND_API_KEYS ? keySchema.parse(JSON.parse(c.env.SEND_API_KEYS)) : []; }
 		catch { return c.json({ error: "Invalid send API configuration" }, 503); }
 		const authorization = c.req.header("Authorization") ?? "";
 		const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
 		if (token.length < 32 || token.length > 256) return c.json({ error: "Invalid API key" }, 401);
 		let matched: ApiKey | undefined;
 		for (const item of keys) if (await equalSecret(token, item.key)) matched = item;
+		const digest = await hashKey(token);
+		for (const item of managed) if (await equalSecret(digest, item.hash)) matched = {name:item.name,key:item.hash,from:item.from};
 		if (!matched) return c.json({ error: "Invalid API key" }, 401);
 		if (!await consumeLimit(c.env, `send-key:${matched.key}`, 60, 60_000)) {
 			c.header("Retry-After", "60");
